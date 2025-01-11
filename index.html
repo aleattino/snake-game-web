@@ -182,14 +182,18 @@
                 if (Math.abs(diffX) > 10 || Math.abs(diffY) > 10) {
                     if (Math.abs(diffX) > Math.abs(diffY)) {
                         // Swipe orizzontale
-                        this.direction = diffX > 0 
-                            ? {x: this.cellSize, y: 0} 
-                            : {x: -this.cellSize, y: 0};
+                        if (this.direction.y === 0) {
+                            this.direction = diffX > 0 
+                                ? {x: this.cellSize, y: 0} 
+                                : {x: -this.cellSize, y: 0};
+                        }
                     } else {
                         // Swipe verticale
-                        this.direction = diffY > 0 
-                            ? {x: 0, y: this.cellSize} 
-                            : {x: 0, y: -this.cellSize};
+                        if (this.direction.x === 0) {
+                            this.direction = diffY > 0 
+                                ? {x: 0, y: this.cellSize} 
+                                : {x: 0, y: -this.cellSize};
+                        }
                     }
 
                     // Resetta i valori di start
@@ -263,9 +267,16 @@
             head.x += this.direction.x;
             head.y += this.direction.y;
 
-            // Controllo bordi con wrap-around
-            head.x = (head.x + this.width) % this.width;
-            head.y = (head.y + this.height) % this.height;
+            // Controllo bordi con game over
+            if (
+                head.x < 0 || 
+                head.x >= this.width || 
+                head.y < 0 || 
+                head.y >= this.height
+            ) {
+                this.gameOver();
+                return;
+            }
 
             // Controllo auto-collisione
             if (this.snake.some(segment => 
@@ -277,8 +288,14 @@
 
             this.snake.unshift(head);
 
-            // Mangia cibo
-            if (head.x === this.food.x && head.y === this.food.y) {
+            // Mangia cibo con tolleranza
+            const isFoodEaten = 
+                head.x < this.food.x + this.cellSize &&
+                head.x + this.cellSize > this.food.x &&
+                head.y < this.food.y + this.cellSize &&
+                head.y + this.cellSize > this.food.y;
+
+            if (isFoodEaten) {
                 this.score++;
                 this.scoreElement.textContent = this.score;
                 this.food = this.generateFood();
