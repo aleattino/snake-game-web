@@ -109,16 +109,31 @@
             justify-content: center;
             align-items: center;
             touch-action: manipulation;
+            width: 100%;
+            height: 100%;
+            min-height: 50px;
         }
 
         .dpad-btn:active {
             background-color: #444;
         }
 
-        #upBtn { grid-area: up; }
-        #downBtn { grid-area: down; }
-        #leftBtn { grid-area: left; }
-        #rightBtn { grid-area: right; }
+        #upBtn { 
+            grid-area: up;
+            border-radius: 10px 10px 0 0;
+        }
+        #downBtn { 
+            grid-area: down;
+            border-radius: 0 0 10px 10px;
+        }
+        #leftBtn { 
+            grid-area: left;
+            border-radius: 10px 0 0 10px;
+        }
+        #rightBtn { 
+            grid-area: right;
+            border-radius: 0 10px 10px 0;
+        }
         #centerBtn { 
             grid-area: center; 
             background-color: #444;
@@ -181,25 +196,37 @@
                 // Mantieni il rapporto 2:3
                 if (containerWidth / containerHeight > 2/3) {
                     // La larghezza è troppo grande
-                    this.canvas.width = containerHeight * (2/3);
-                    this.canvas.height = containerHeight;
+                    this.canvas.width = Math.floor(containerHeight * (2/3));
+                    this.canvas.height = Math.floor(containerHeight);
                 } else {
                     // L'altezza è troppo piccola
-                    this.canvas.width = containerWidth;
-                    this.canvas.height = containerWidth * (3/2);
+                    this.canvas.width = Math.floor(containerWidth);
+                    this.canvas.height = Math.floor(containerWidth * (3/2));
                 }
 
                 // Calcola la dimensione della cella
                 this.cellSize = Math.floor(this.canvas.width / 20);
 
-                // Ridisegna se il gioco è in corso
+                // Ricalcola le posizioni di serpente e cibo
                 if (this.snake) {
+                    this.snake = this.snake.map(segment => [
+                        Math.floor(segment[0] * this.canvas.width / this.canvas.width),
+                        Math.floor(segment[1] * this.canvas.height / this.canvas.height)
+                    ]);
+                    
+                    if (this.food) {
+                        this.food = [
+                            Math.floor(Math.random() * (this.canvas.width / this.cellSize)) * this.cellSize,
+                            Math.floor(Math.random() * (this.canvas.height / this.cellSize)) * this.cellSize
+                        ];
+                    }
+
                     this.draw();
                 }
             }
 
             initGame() {
-                this.snake = [[100, 100]];
+                this.snake = [[Math.floor(this.canvas.width/2), Math.floor(this.canvas.height/2)]];
                 this.food = this.generateFood();
                 this.direction = [this.cellSize, 0];
                 this.score = 0;
@@ -265,12 +292,11 @@
                     head[1] + this.direction[1]
                 ];
 
-                if (newHead[0] < 0 || newHead[0] >= this.canvas.width ||
-                    newHead[1] < 0 || newHead[1] >= this.canvas.height) {
-                    this.gameOverHandler();
-                    return;
-                }
+                // Controllo bordi con wrap-around
+                newHead[0] = (newHead[0] + this.canvas.width) % this.canvas.width;
+                newHead[1] = (newHead[1] + this.canvas.height) % this.canvas.height;
 
+                // Controllo auto-collisione
                 if (this.snake.some(segment => 
                     segment[0] === newHead[0] && segment[1] === newHead[1]
                 )) {
@@ -280,11 +306,17 @@
 
                 this.snake.push(newHead);
 
-                if (newHead[0] === this.food[0] && newHead[1] === this.food[1]) {
+                // Controllo mangiare cibo con una tolleranza
+                const isFoodEaten = 
+                    Math.abs(newHead[0] - this.food[0]) < this.cellSize &&
+                    Math.abs(newHead[1] - this.food[1]) < this.cellSize;
+
+                if (isFoodEaten) {
                     this.food = this.generateFood();
                     this.score++;
                     this.updateScore();
 
+                    // Aumenta velocità
                     this.currentSpeed = Math.max(
                         this.minSpeed, 
                         this.baseSpeed - (this.score * 5)
@@ -330,17 +362,29 @@
                     }
                 });
 
-                document.getElementById('upBtn').addEventListener('click', () => {
-                    if (this.direction[1] === 0) this.direction = [0, -this.cellSize];
-                });
-                document.getElementById('downBtn').addEventListener('click', () => {
-                    if (this.direction[1] === 0) this.direction = [0, this.cellSize];
-                });
-                document.getElementById('leftBtn').addEventListener('click', () => {
-                    if (this.direction[0] === 0) this.direction = [-this.cellSize, 0];
-                });
-                document.getElementById('rightBtn').addEventListener('click', () => {
-                    if (this.direction[0] === 0) this.direction = [this.cellSize, 0];
+                // Touch controls
+                const dpadButtons = {
+                    'upBtn': [0, -1],
+                    'downBtn': [0, 1],
+                    'leftBtn': [-1, 0],
+                    'rightBtn': [1, 0]
+                };
+
+                Object.entries(dpadButtons).forEach(([btnId, directionMultiplier]) => {
+                    document.getElementById(btnId).addEventListener('click', () => {
+                        const newDirection = [
+                            directionMultiplier[0] * this.cellSize, 
+                            directionMultiplier[1] * this.cellSize
+                        ];
+
+                        // Impedisci inversioni a 180 gradi
+                        if (
+                            (newDirection[0] === 0 && this.direction[0] !== 0) ||
+                            (newDirection[1] === 0 && this.direction[1] !== 0)
+                        ) {
+                            this.direction = newDirection;
+                        }
+                    });
                 });
 
                 this.restartButton.addEventListener('click', () => this.initGame());
