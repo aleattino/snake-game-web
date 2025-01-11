@@ -250,8 +250,8 @@
 
         generateFood() {
             return {
-                x: Math.floor(Math.random() * (this.width / this.cellSize)) * this.cellSize,
-                y: Math.floor(Math.random() * (this.height / this.cellSize)) * this.cellSize
+                x: Math.floor(Math.random() * ((this.width - this.cellSize) / this.cellSize)) * this.cellSize,
+                y: Math.floor(Math.random() * ((this.height - this.cellSize) / this.cellSize)) * this.cellSize
             };
         }
 
@@ -260,13 +260,15 @@
             head.x += this.direction.x;
             head.y += this.direction.y;
 
-            // Controllo bordi con game over
-            if (
-                head.x < 0 || 
-                head.x >= this.width || 
-                head.y < 0 || 
-                head.y >= this.height
-            ) {
+            // Controllo bordi più preciso
+            const borderTolerance = 1; // Piccola tolleranza per gestire arrotondamenti
+            const borderCheck = 
+                head.x < -borderTolerance || 
+                head.x >= this.width - this.cellSize + borderTolerance || 
+                head.y < -borderTolerance || 
+                head.y >= this.height - this.cellSize + borderTolerance;
+
+            if (borderCheck) {
                 this.gameOver();
                 return;
             }
@@ -281,12 +283,17 @@
 
             this.snake.unshift(head);
 
-            // Mangia cibo con tolleranza
+            // Logica di mangiare il cibo più precisa
+            const headRight = head.x + this.cellSize;
+            const headBottom = head.y + this.cellSize;
+            const foodRight = this.food.x + this.cellSize;
+            const foodBottom = this.food.y + this.cellSize;
+
             const isFoodEaten = 
-                head.x < this.food.x + this.cellSize &&
-                head.x + this.cellSize > this.food.x &&
-                head.y < this.food.y + this.cellSize &&
-                head.y + this.cellSize > this.food.y;
+                head.x < foodRight &&
+                headRight > this.food.x &&
+                head.y < foodBottom &&
+                headBottom > this.food.y;
 
             if (isFoodEaten) {
                 this.score++;
